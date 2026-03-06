@@ -113,5 +113,5 @@ Analyze a series RLC circuit with R=100 ohm, L=10mH, and C=220nF.
 ## Author
 
 **Mohit Jain**
-- GitHub: [@mohitjain2306](https://github.com/mohitjain2306)
+- GitHub: [mohitjain2306](https://github.com/mohitjain2306)
 - Live App: [intellicircuit.onrender.com](https://intellicircuit.onrender.com)
