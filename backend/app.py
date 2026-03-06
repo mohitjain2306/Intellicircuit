@@ -1860,14 +1860,5 @@ fprintf('All plots generated successfully.\\n');
     
     return code
 if __name__ == '__main__':
-    logger.info("Starting Advanced Circuit Analysis System...")
-    logger.info(f"MATLAB Available: {MATLAB_AVAILABLE}")
-    logger.info(f"MATLAB Engine Status: {'Connected' if matlab_mgr.is_connected() else 'Disconnected'}")
-    port = int(os.environ.get('PORT', 5000))
-    try:
-        app.run(debug=True, host='0.0.0.0', port=port)
-    except KeyboardInterrupt:
-        logger.info("Shutting down...")
-    finally:
-        matlab_mgr.disconnect()
-        logger.info("Application stopped")
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
