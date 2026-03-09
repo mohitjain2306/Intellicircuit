@@ -30,29 +30,38 @@ And the system will:
 | Frontend | HTML, CSS, Vanilla JavaScript |
 | Optimization | Genetic Algorithm (custom built) |
 | Diagrams | SVG (auto-generated) |
+| Containerization | Docker, Docker Compose |
+| CI/CD | GitHub Actions |
 | Deployment | Render |
 
 ---
 
 ## Project Structure
 ```
-intellicircuit/
+Intellicircuit/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml         
 ├── backend/
-│   ├── app.py              
-│   ├── requirements.txt    
-│   └── Procfile            
+│   ├── app.py                 
+│   ├── requirements.txt       
+│   ├── Procfile               
+│   └── Dockerfile             
 ├── frontend/
-│   └── circuit_analyzer.html
+│   ├── circuit_analyzer.html  
+│   └── nginx.conf             
 ├── scripts/
-│   └── deploy.sh           
-├── k8s/                    
-├── docs/                   
+│   └── deploy.sh              
+├── docker-compose.yml         
+├── .gitignore
 └── README.md
 ```
 
 ---
 
 ## Run Locally
+
+### Without Docker
 ```bash
 git clone https://github.com/mohitjain2306/Intellicircuit.git
 cd Intellicircuit
@@ -61,6 +70,39 @@ cd backend
 python app.py
 ```
 Then open http://localhost:5000
+
+### With Docker
+```bash
+git clone https://github.com/mohitjain2306/Intellicircuit.git
+cd Intellicircuit
+docker compose up
+```
+- Frontend: http://localhost:8080
+- Backend: http://localhost:5001
+
+---
+
+## DevOps Setup
+
+### Docker
+The backend is containerized using Docker. The frontend is served using Nginx.
+```bash
+docker build -t intellicircuit-backend ./backend
+docker run -p 5000:5000 intellicircuit-backend
+```
+
+### Docker Compose
+Runs both frontend and backend together with one command:
+```bash
+docker compose up
+```
+
+### CI/CD Pipeline
+Every push to main automatically:
+1. Builds the Docker image
+2. Pushes it to DockerHub
+
+DockerHub image: `mohitjain2306/intellicircuit-backend`
 
 ---
 
@@ -99,19 +141,9 @@ Analyze a series RLC circuit with R=100 ohm, L=10mH, and C=220nF.
 
 ---
 
-## DevOps (In Progress)
-
-- [x] Deployed on Render with auto-deploy from GitHub
-- [x] Clean project structure
-- [ ] Docker containerization
-- [ ] Docker Compose
-- [ ] GitHub Actions CI/CD pipeline
-- [ ] Kubernetes deployment
-
----
-
 ## Author
 
 **Mohit Jain**
-- GitHub: [mohitjain2306](https://github.com/mohitjain2306)
+- GitHub: [@mohitjain2306](https://github.com/mohitjain2306)
 - Live App: [intellicircuit.onrender.com](https://intellicircuit.onrender.com)
+- DockerHub: [mohitjain2306](https://hub.docker.com/u/mohitjain2306)
