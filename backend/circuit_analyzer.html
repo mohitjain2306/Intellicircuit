@@ -667,7 +667,7 @@ Examples:
                 
                 if (status.backend_ready) {
                     statusDot.style.background = '#00ff41';
-                    statusText.textContent = status.matlab_available ? 'MATLAB Ready' : 'Python Ready';
+                    statusText.textContent = status.matlab_available ? 'MATLAB Ready' : 'App Ready';
                     statusText.style.color = '#ffffff';
                 } else {
                     statusDot.style.background = '#ffc107';
@@ -677,7 +677,7 @@ Examples:
                 const statusDot = document.getElementById('statusDot');
                 const statusText = document.getElementById('statusText');
                 statusDot.style.background = '#dc3545';
-                statusText.textContent = 'Backend Offline';
+                statusText.textContent = 'App Offline';
                 console.warn('Backend not available, using offline mode');
             }
         }
