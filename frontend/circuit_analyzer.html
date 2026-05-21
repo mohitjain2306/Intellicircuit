@@ -552,7 +552,7 @@ Examples:
                     <div class="smart-options">
                         <div class="option-group">
                             <label class="option-label">Analysis Type:</label>
-                            <select id="analysisType">
+                            <select id="analysisType" onchange="onAnalysisTypeChange()">
                                 <option value="auto">Auto-Detect Best Analysis</option>
                                 <option value="dc">DC Analysis</option>
                                 <option value="ac">AC Analysis</option>
@@ -561,6 +561,15 @@ Examples:
                                 <option value="power">Power Analysis</option>
                                 <option value="filter_design">Filter Design</option>
                                 <option value="op_amp">Op-Amp Analysis</option>
+                            </select>
+                        </div>
+                        <div class="option-group" id="transientOptions" style="display:none;">
+                            <label class="option-label">Input Signal Type:</label>
+                            <select id="transientSignalType">
+                                <option value="step">Step (DC Switch-On)</option>
+                                <option value="sine">Sine Wave (at resonant/cutoff freq)</option>
+                                <option value="square">Square Wave</option>
+                                <option value="pulse">Single Pulse</option>
                             </select>
                         </div>
                         <div class="option-group">
@@ -732,7 +741,7 @@ Examples:
                 } catch (fetchError) {
                     console.warn('Backend unavailable, using offline analysis:', fetchError.message);
                     const parsed = parseCircuitQuery(query);
-                    const results = calculateCircuitResults(parsed, options);
+                    const results = calculateCircuitResults(parsed, options, analysisType);
                     displayResults(results);
                 }
             } catch (error) {
@@ -830,7 +839,7 @@ Examples:
             return value;
         }
 
-        function calculateCircuitResults(parsed, options = {}) {
+        function calculateCircuitResults(parsed, options = {}, analysisType = 'auto') {
             const { components, circuitType } = parsed;
             const results = {
                 success: true,
@@ -901,17 +910,31 @@ Examples:
                 results.circuit_diagram = generateRCFilterDiagram(components);
                 
                 if (options.generate_plots) {
-                    results.plots.push({
-                        title: 'Frequency Response (Bode Plot)',
-                        description: `RC Low-Pass Filter (fc = ${fc.toFixed(1)} Hz)`,
-                        image: generateBodePlot(fc, 'rc')
-                    });
-                    
-                    results.plots.push({
-                        title: 'Step Response',
-                        description: `Time domain response (τ = ${(tau * 1000).toFixed(2)} ms)`,
-                        image: generateStepResponsePlot(tau)
-                    });
+                    const freqData = computeFrequencyResponse('rc_filter', components, vin);
+                    if (freqData) {
+                        freqData.annotations.forEach(a => {
+                            if (!results.direct_answers.find(d => d.question === a.question))
+                                results.direct_answers.push(a);
+                        });
+                        results.plots.push({
+                            title: '📊 Frequency Response — Bode Plot',
+                            description: freqData.description,
+                            image: drawBodePlot(freqData)
+                        });
+                    }
+                    const signalType = document.getElementById('transientSignalType')?.value || 'step';
+                    const transData = runTransientSimulation('rc_filter', components, vin, signalType);
+                    if (transData) {
+                        transData.annotations.forEach(a => {
+                            if (!results.direct_answers.find(d => d.question === a.question))
+                                results.direct_answers.push(a);
+                        });
+                        results.plots.push({
+                            title: '⏱ Transient Response',
+                            description: transData.description,
+                            image: drawTransientPlot(transData)
+                        });
+                    }
                 }
             } 
             else if (circuitType === 'op_amp' && resistors.length >= 2) {
@@ -934,6 +957,18 @@ Examples:
                         description: `Non-inverting amplifier gain characteristics`,
                         image: generateGainPlot(gain, gainDb)
                     });
+                    const freqData = computeFrequencyResponse('op_amp', components, vin);
+                    if (freqData) {
+                        freqData.annotations.forEach(a => {
+                            if (!results.direct_answers.find(d => d.question === a.question))
+                                results.direct_answers.push(a);
+                        });
+                        results.plots.push({
+                            title: '📊 Frequency Response — Bode Plot',
+                            description: freqData.description,
+                            image: drawBodePlot(freqData)
+                        });
+                    }
                 }
             } 
             else if (circuitType === 'rlc' && resistors.length > 0 && inductors.length > 0 && capacitors.length > 0) {
@@ -955,11 +990,31 @@ Examples:
                 results.circuit_diagram = generateRLCDiagram(components);
                 
                 if (options.generate_plots) {
-                    results.plots.push({
-                        title: 'RLC Frequency Response',
-                        description: `Resonant circuit analysis (f₀ = ${resonantFreq.toFixed(1)} Hz, Q = ${q.toFixed(2)})`,
-                        image: generateRLCResponsePlot(resonantFreq, q, r, l, c)
-                    });
+                    const freqData = computeFrequencyResponse('rlc', components, vin);
+                    if (freqData) {
+                        freqData.annotations.forEach(a => {
+                            if (!results.direct_answers.find(d => d.question === a.question))
+                                results.direct_answers.push(a);
+                        });
+                        results.plots.push({
+                            title: '📊 Frequency Response — Bode Plot',
+                            description: freqData.description,
+                            image: drawBodePlot(freqData)
+                        });
+                    }
+                    const signalType = document.getElementById('transientSignalType')?.value || 'step';
+                    const transData = runTransientSimulation('rlc', components, vin, signalType);
+                    if (transData) {
+                        transData.annotations.forEach(a => {
+                            if (!results.direct_answers.find(d => d.question === a.question))
+                                results.direct_answers.push(a);
+                        });
+                        results.plots.push({
+                            title: '⏱ Transient Response',
+                            description: transData.description,
+                            image: drawTransientPlot(transData)
+                        });
+                    }
                 }
             } 
             else if (circuitType === 'power_analysis' && resistors.length > 0) {
@@ -1001,7 +1056,58 @@ Examples:
                     });
                 }
             }
-            
+
+            // ── Explicit analysis-type overrides ──────────────────────────────────
+            // When user explicitly picks "Frequency Response" or "Transient Analysis"
+            // ensure those plots are produced even if auto-detection already handled it,
+            // or if the circuit type is detected but plots were not yet generated.
+            if ((analysisType === 'frequency' || analysisType === 'ac') && options.generate_plots) {
+                const alreadyHasBode = results.plots.some(p => p.title.includes('Bode'));
+                if (!alreadyHasBode) {
+                    const freqData = computeFrequencyResponse(circuitType, components, vin);
+                    if (freqData) {
+                        freqData.annotations.forEach(a => {
+                            if (!results.direct_answers.find(d => d.question === a.question))
+                                results.direct_answers.push(a);
+                        });
+                        results.plots.unshift({
+                            title: '📊 Frequency Response — Bode Plot',
+                            description: freqData.description,
+                            image: drawBodePlot(freqData)
+                        });
+                    } else {
+                        results.direct_answers.push({
+                            question: 'Frequency Response',
+                            answer: 'Not applicable — circuit has no reactive components (L/C)'
+                        });
+                    }
+                }
+            }
+
+            if (analysisType === 'transient' && options.generate_plots) {
+                const alreadyHasTransient = results.plots.some(p => p.title.includes('Transient'));
+                if (!alreadyHasTransient) {
+                    const signalType = document.getElementById('transientSignalType')?.value || 'step';
+                    const transData = runTransientSimulation(circuitType, components, vin, signalType);
+                    if (transData) {
+                        transData.annotations.forEach(a => {
+                            if (!results.direct_answers.find(d => d.question === a.question))
+                                results.direct_answers.push(a);
+                        });
+                        results.plots.unshift({
+                            title: '⏱ Transient Response',
+                            description: transData.description,
+                            image: drawTransientPlot(transData)
+                        });
+                    } else {
+                        results.direct_answers.push({
+                            question: 'Transient Analysis',
+                            answer: 'Not applicable — circuit has no reactive components (L/C)'
+                        });
+                    }
+                }
+            }
+
             return results;
         }
 
@@ -2092,10 +2198,705 @@ function generateConvergencePlot(fitnessHistory) {
     return canvas.toDataURL();
 }
     
-function formatTitle(str) {
-    return str.replace(/_/g, ' ')
-              .replace(/\b\w/g, l => l.toUpperCase());
+// ═══════════════════════════════════════════════════════════════════
+//  UI HANDLER
+// ═══════════════════════════════════════════════════════════════════
+function onAnalysisTypeChange() {
+    const type = document.getElementById('analysisType').value;
+    document.getElementById('transientOptions').style.display =
+        type === 'transient' ? 'block' : 'none';
 }
+
+// ═══════════════════════════════════════════════════════════════════
+//  HELPER UTILITIES
+// ═══════════════════════════════════════════════════════════════════
+function formatFreq(f) {
+    if (f >= 1e9)  return `${(f/1e9).toPrecision(4)} GHz`;
+    if (f >= 1e6)  return `${(f/1e6).toPrecision(4)} MHz`;
+    if (f >= 1e3)  return `${(f/1e3).toPrecision(4)} kHz`;
+    return `${f.toPrecision(4)} Hz`;
+}
+
+function formatTime(t) {
+    if (isNaN(t) || !isFinite(t)) return '—';
+    const abs = Math.abs(t);
+    if (abs >= 1)    return `${t.toFixed(4)} s`;
+    if (abs >= 1e-3) return `${(t*1e3).toFixed(4)} ms`;
+    if (abs >= 1e-6) return `${(t*1e6).toFixed(4)} μs`;
+    if (abs >= 1e-9) return `${(t*1e9).toFixed(4)} ns`;
+    return `${t.toExponential(3)} s`;
+}
+
+function findCrossing(xArr, yArr, yTarget, side) {
+    // side: 'first' = first crossing from left; 'last' = last crossing from right
+    const idxRange = side === 'last'
+        ? Array.from({length: xArr.length - 1}, (_, i) => xArr.length - 2 - i)
+        : Array.from({length: xArr.length - 1}, (_, i) => i);
+    for (const i of idxRange) {
+        const a = yArr[i], b = yArr[i+1];
+        if ((a > yTarget && b <= yTarget) || (a < yTarget && b >= yTarget)) {
+            const t = (yTarget - a) / (b - a);
+            // Linear interpolation in log-frequency space
+            const lx = Math.log10(xArr[i]) + t * (Math.log10(xArr[i+1]) - Math.log10(xArr[i]));
+            return Math.pow(10, lx);
+        }
+    }
+    return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FREQUENCY RESPONSE ANALYSIS ENGINE
+//  Computes H(jω) at 100 log-spaced pts/decade using complex nodal
+//  analysis, then auto-annotates key parameters.
+// ═══════════════════════════════════════════════════════════════════
+function computeFrequencyResponse(circuitType, components, vinDC) {
+    const R_comps = components.filter(c => c.type === 'resistor');
+    const C_comps = components.filter(c => c.type === 'capacitor');
+    const L_comps = components.filter(c => c.type === 'inductor');
+
+    // ── RC Low-Pass Filter ────────────────────────────────────────
+    if (circuitType === 'rc_filter' && R_comps.length > 0 && C_comps.length > 0) {
+        const R = R_comps[0].value;
+        const C = C_comps[0].value;
+        const fc = 1 / (2 * Math.PI * R * C);
+
+        const fMin = Math.max(fc / 1000, 0.01);
+        const fMax = Math.min(fc * 1000, 1e10);
+        const decades = Math.log10(fMax / fMin);
+        const N = Math.ceil(100 * decades);
+
+        const freqs = [], mags = [], phases = [];
+        for (let i = 0; i < N; i++) {
+            const f     = fMin * Math.pow(fMax/fMin, i/(N-1));
+            const omega = 2*Math.PI*f;
+            // H(jω) = 1 / (1 + jωRC)
+            const re = 1, im = omega*R*C;
+            const mag_lin = 1 / Math.sqrt(re*re + im*im);
+            freqs.push(f);
+            mags.push(20*Math.log10(mag_lin));
+            phases.push(-Math.atan2(im, re) * 180/Math.PI);
+        }
+
+        const f3dB = findCrossing(freqs, mags, -3, 'first') || fc;
+        return {
+            freqs, mags, phases,
+            description: `RC Low-Pass Filter — fc = ${formatFreq(fc)}, τ = ${formatTime(R*C)}`,
+            annotations: [
+                { question: '-3 dB Cutoff Frequency', answer: formatFreq(f3dB) },
+                { question: 'DC Gain',                answer: '0 dB (unity)' },
+                { question: 'Phase at Cutoff',        answer: '-45.0°' },
+                { question: 'Roll-off Rate',          answer: '-20 dB/decade' }
+            ],
+            markers: [{ freq: f3dB, label: `fc = ${formatFreq(f3dB)}`, type: '-3dB' }]
+        };
+    }
+
+    // ── Series RLC ────────────────────────────────────────────────
+    if (circuitType === 'rlc' && R_comps.length > 0 && L_comps.length > 0 && C_comps.length > 0) {
+        const R = R_comps[0].value;
+        const L = L_comps[0].value;
+        const C = C_comps[0].value;
+        const omega0 = 1/Math.sqrt(L*C);
+        const f0     = omega0/(2*Math.PI);
+        const Q      = omega0*L/R;
+        const BW     = f0/Q;
+
+        const fMin = Math.max(f0/1000, 0.01);
+        const fMax = Math.min(f0*1000, 1e10);
+        const decades = Math.log10(fMax/fMin);
+        const N = Math.ceil(100 * decades);
+
+        const freqs = [], mags = [], phases = [];
+        for (let i = 0; i < N; i++) {
+            const f     = fMin * Math.pow(fMax/fMin, i/(N-1));
+            const omega = 2*Math.PI*f;
+            // Voltage across C in series RLC (low-pass): H(jω) = 1/(1 - ω²LC + jωRC)
+            const re_d = 1 - omega*omega*L*C;
+            const im_d = omega*R*C;
+            const mag_lin = 1/Math.sqrt(re_d*re_d + im_d*im_d);
+            freqs.push(f);
+            mags.push(20*Math.log10(mag_lin));
+            phases.push(-Math.atan2(im_d, re_d) * 180/Math.PI);
+        }
+
+        const peakMag  = Math.max(...mags);
+        const f3dB_lo  = findCrossing(freqs, mags, peakMag - 3, 'first');
+        const f3dB_hi  = findCrossing(freqs, mags, peakMag - 3, 'last');
+        const measuredBW = (f3dB_lo && f3dB_hi) ? (f3dB_hi - f3dB_lo) : BW;
+
+        const markers = [{ freq: f0, label: `f₀ = ${formatFreq(f0)}`, type: 'resonant' }];
+        if (f3dB_lo) markers.push({ freq: f3dB_lo, label: '-3dB', type: '-3dB' });
+        if (f3dB_hi) markers.push({ freq: f3dB_hi, label: '-3dB', type: '-3dB' });
+
+        return {
+            freqs, mags, phases,
+            description: `Series RLC — f₀ = ${formatFreq(f0)}, Q = ${Q.toFixed(3)}, BW = ${formatFreq(measuredBW)}`,
+            annotations: [
+                { question: 'Resonant Frequency',    answer: formatFreq(f0) },
+                { question: 'Quality Factor (Q)',    answer: Q.toFixed(3) },
+                { question: 'Bandwidth (-3 dB)',     answer: formatFreq(measuredBW) },
+                { question: 'Peak Gain (at resonance)', answer: `${peakMag.toFixed(2)} dB` },
+                { question: 'Damping Ratio (ζ)',     answer: (1/(2*Q)).toFixed(4) }
+            ],
+            markers
+        };
+    }
+
+    // ── Non-Inverting Op-Amp ──────────────────────────────────────
+    if (circuitType === 'op_amp' && R_comps.length >= 2) {
+        const Rf   = R_comps[0].value;
+        const R1   = R_comps[1].value;
+        const A_CL = 1 + Rf/R1;
+        const GBW  = 1e6;         // typical unity-gain BW (1 MHz assumed)
+        const fp   = GBW / A_CL;  // closed-loop -3 dB
+
+        const fMin = 1, fMax = GBW * 20;
+        const decades = Math.log10(fMax/fMin);
+        const N = Math.ceil(100 * decades);
+
+        const freqs = [], mags = [], phases = [];
+        for (let i = 0; i < N; i++) {
+            const f     = fMin * Math.pow(fMax/fMin, i/(N-1));
+            const omega = 2*Math.PI*f;
+            const omegaP = 2*Math.PI*fp;
+            // Single-pole closed-loop: H(jω) = A_CL / (1 + jω/ωp)
+            const mag_lin = A_CL / Math.sqrt(1 + Math.pow(omega/omegaP, 2));
+            freqs.push(f);
+            mags.push(20*Math.log10(mag_lin));
+            phases.push(-Math.atan2(omega/omegaP, 1) * 180/Math.PI);
+        }
+
+        return {
+            freqs, mags, phases,
+            description: `Non-Inverting Op-Amp — A_CL = ${A_CL.toFixed(2)} (${(20*Math.log10(A_CL)).toFixed(1)} dB), GBW = 1 MHz (assumed)`,
+            annotations: [
+                { question: 'Closed-Loop DC Gain', answer: `${A_CL.toFixed(3)} (${(20*Math.log10(A_CL)).toFixed(2)} dB)` },
+                { question: '-3 dB Bandwidth',     answer: formatFreq(fp) },
+                { question: 'Gain-Bandwidth Product', answer: '1.000 MHz (assumed typical)' }
+            ],
+            markers: [
+                { freq: fp,  label: `f₋₃dB = ${formatFreq(fp)}`, type: '-3dB' },
+                { freq: GBW, label: 'GBW = 1 MHz',               type: 'gbw' }
+            ]
+        };
+    }
+
+    return null; // circuit type not supported
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DARK-THEMED BODE PLOT RENDERER
+//  Produces a canvas with magnitude (top) and phase (bottom) panels,
+//  log-freq x-axis with per-decade minor grid, annotated markers.
+// ═══════════════════════════════════════════════════════════════════
+function drawBodePlot(freqData) {
+    const { freqs, mags, phases, markers = [] } = freqData;
+    const W = 920, H = 660;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // ── background ──
+    ctx.fillStyle = '#0a0e1a';
+    ctx.fillRect(0, 0, W, H);
+
+    // ── title ──
+    ctx.fillStyle = '#e1f5fe';
+    ctx.font = 'bold 15px "Segoe UI", Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Bode Plot — Frequency Response Analysis', W/2, 24);
+
+    const PAD  = { left: 80, right: 25, top: 38 };
+    const GAP  = 52;
+    const FOOT = 42;
+    const CHART_H = Math.floor((H - PAD.top - GAP - FOOT) / 2);
+    const CHART_W = W - PAD.left - PAD.right;
+    const magY   = PAD.top;
+    const phaseY = PAD.top + CHART_H + GAP;
+
+    // freq axis bounds
+    const fMin = freqs[0], fMax = freqs[freqs.length-1];
+    const logFMin = Math.log10(fMin), logFMax = Math.log10(fMax);
+    const toX = f => PAD.left + (Math.log10(f)-logFMin)/(logFMax-logFMin)*CHART_W;
+
+    // mag axis bounds (round to nearest 10 dB)
+    let magLo = Math.floor((Math.min(...mags) - 8)/10)*10;
+    let magHi = Math.ceil((Math.max(...mags) + 8)/10)*10;
+    if (magHi - magLo < 20) { magLo -= 10; magHi += 10; }
+    const magStep = (magHi - magLo) <= 60 ? 10 : 20;
+    const toMagY = m => magY + CHART_H - (m-magLo)/(magHi-magLo)*CHART_H;
+
+    // phase axis bounds (round to 45°)
+    let phLo = Math.floor((Math.min(...phases)-10)/45)*45;
+    let phHi = Math.ceil((Math.max(...phases)+10)/45)*45;
+    if (phHi - phLo < 45) phLo -= 45;
+    const toPhasY = p => phaseY + CHART_H - (p-phLo)/(phHi-phLo)*CHART_H;
+
+    // ── chart backgrounds + borders ──
+    function chartBg(x, y, w, h) {
+        ctx.fillStyle = '#0f1420';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#1e3048';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, w, h);
+    }
+    chartBg(PAD.left, magY,   CHART_W, CHART_H);
+    chartBg(PAD.left, phaseY, CHART_W, CHART_H);
+
+    // ── grid drawing helper ──
+    function hGrid(y0, yFn, lo, hi, step, chartY, chartH2) {
+        for (let v = lo; v <= hi; v += step) {
+            const y = yFn(v);
+            if (y < chartY - 1 || y > chartY + chartH2 + 1) continue;
+            ctx.strokeStyle = v === 0 ? '#253550' : '#182535';
+            ctx.lineWidth   = v === 0 ? 1.5 : 0.7;
+            ctx.setLineDash(v === 0 ? [6,4] : []);
+            ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left+CHART_W, y); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+    hGrid(magY,   toMagY,  magLo, magHi, magStep, magY,   CHART_H);
+    hGrid(phaseY, toPhasY, phLo,  phHi,  45,      phaseY, CHART_H);
+
+    // vertical freq grid (decades + minor)
+    const dStart = Math.ceil(logFMin), dEnd = Math.floor(logFMax);
+    for (let d = dStart-1; d <= dEnd+1; d++) {
+        [1,2,3,4,5,6,7,8,9].forEach(m => {
+            const f = Math.pow(10, d) * m;
+            if (f < fMin || f > fMax) return;
+            const x = toX(f);
+            ctx.strokeStyle = m === 1 ? '#253550' : '#151f2e';
+            ctx.lineWidth   = m === 1 ? 0.8 : 0.4;
+            ctx.beginPath(); ctx.moveTo(x, magY);   ctx.lineTo(x, magY+CHART_H);   ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x, phaseY); ctx.lineTo(x, phaseY+CHART_H); ctx.stroke();
+        });
+    }
+
+    // ── magnitude curve ──
+    ctx.strokeStyle = '#00d4ff';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(0,212,255,0.35)';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    freqs.forEach((f,i) => {
+        const x = toX(f), y = toMagY(mags[i]);
+        i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // ── phase curve ──
+    ctx.strokeStyle = '#00ff6a';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(0,255,106,0.30)';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    freqs.forEach((f,i) => {
+        const x = toX(f), y = toPhasY(phases[i]);
+        i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // ── markers ──
+    markers.forEach(mk => {
+        if (mk.freq < fMin || mk.freq > fMax) return;
+        const x = toX(mk.freq);
+        const col = mk.type === 'resonant' ? '#ff9900' :
+                    mk.type === 'gbw'      ? '#cc44ff' : '#ff4444';
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6,4]);
+        ctx.beginPath(); ctx.moveTo(x, magY);   ctx.lineTo(x, magY+CHART_H);   ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, phaseY); ctx.lineTo(x, phaseY+CHART_H); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // yellow dot on mag curve at marker freq
+        const nearIdx = freqs.reduce((bi,f,i)=>Math.abs(f-mk.freq)<Math.abs(freqs[bi]-mk.freq)?i:bi, 0);
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath(); ctx.arc(x, toMagY(mags[nearIdx]), 5, 0, 2*Math.PI); ctx.fill();
+
+        // label above chart
+        ctx.fillStyle = col;
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(mk.label, x, magY - 5);
+    });
+
+    // ── y-axis tick labels — magnitude ──
+    ctx.fillStyle = '#b3e5fc';
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'right';
+    for (let m = magLo; m <= magHi; m += magStep) {
+        const y = toMagY(m);
+        if (y < magY-2 || y > magY+CHART_H+2) continue;
+        ctx.fillText(`${m} dB`, PAD.left - 6, y + 4);
+    }
+
+    // y-axis tick labels — phase
+    for (let p = phLo; p <= phHi; p += 45) {
+        const y = toPhasY(p);
+        if (y < phaseY-2 || y > phaseY+CHART_H+2) continue;
+        ctx.fillText(`${p}°`, PAD.left - 6, y + 4);
+    }
+
+    // ── x-axis tick labels ──
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#b3e5fc';
+    for (let d = dStart; d <= dEnd; d++) {
+        const f = Math.pow(10, d);
+        if (f < fMin || f > fMax) continue;
+        const x = toX(f);
+        const lbl = d >= 9 ? `${Math.pow(10,d-9)}G` :
+                    d >= 6 ? `${Math.pow(10,d-6)}M` :
+                    d >= 3 ? `${Math.pow(10,d-3)}k` : `${Math.pow(10,d)}`;
+        ctx.fillText(lbl, x, magY+CHART_H+14);
+        ctx.fillText(lbl, x, phaseY+CHART_H+14);
+    }
+
+    // ── rotated axis labels ──
+    function rotLabel(text, cx, cy, color) {
+        ctx.save();
+        ctx.translate(cx, cy); ctx.rotate(-Math.PI/2);
+        ctx.fillStyle = color; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+    }
+    rotLabel('Magnitude (dB)', 16, magY+CHART_H/2,   '#00d4ff');
+    rotLabel('Phase (°)',      16, phaseY+CHART_H/2,  '#00ff6a');
+
+    // ── x-axis master label ──
+    ctx.fillStyle = '#b3e5fc';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Frequency (Hz)', W/2, H - 6);
+
+    // ── section labels inside charts ──
+    ctx.fillStyle = '#00d4ff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left';
+    ctx.fillText('MAGNITUDE', PAD.left+6, magY+16);
+    ctx.fillStyle = '#00ff6a';
+    ctx.fillText('PHASE', PAD.left+6, phaseY+16);
+
+    return canvas.toDataURL();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TRANSIENT ANALYSIS ENGINE
+//  Uses the trapezoidal integration rule (Crank-Nicolson) with
+//  adaptive time-stepping: h halved when LTE > 0.1 %, doubled
+//  when LTE < 0.01 %.  h₀ = T/1000.
+// ═══════════════════════════════════════════════════════════════════
+function runTransientSimulation(circuitType, components, vinDC, signalType = 'step') {
+    const R_comps = components.filter(c => c.type === 'resistor');
+    const C_comps = components.filter(c => c.type === 'capacitor');
+    const L_comps = components.filter(c => c.type === 'inductor');
+    const amplitude = (vinDC && vinDC > 0) ? vinDC : 1.0;
+
+    // ── RC Circuit ────────────────────────────────────────────────
+    if (circuitType === 'rc_filter' && R_comps.length > 0 && C_comps.length > 0) {
+        const R   = R_comps[0].value;
+        const C   = C_comps[0].value;
+        const tau = R * C;
+        const T   = 6 * tau;
+        const h0  = T / 1000;
+
+        // Characteristic frequency for AC inputs
+        const fChar = 1 / (2 * Math.PI * tau);
+
+        function vinFn(t) {
+            switch (signalType) {
+                case 'sine':   return amplitude * Math.sin(2*Math.PI*fChar*t);
+                case 'square': return amplitude * (Math.floor(2*t/tau)%2===0 ? 1 : -1);
+                case 'pulse':  return (t >= 0 && t <= tau) ? amplitude : 0;
+                default:       return amplitude; // step
+            }
+        }
+
+        const t_out = [0], vc_out = [0], vin_out = [vinFn(0)];
+        let t = 0, Vc = 0, h = h0;
+        const maxPts = 8000;
+
+        while (t < T && t_out.length < maxPts) {
+            const Vin_n    = vinFn(t);
+            const Vin_next = vinFn(t + h);
+            const alpha    = h / (2 * tau);
+
+            // Trapezoidal (analytically solvable for RC):
+            // Vc[n+1] (1+α) = Vc[n](1-α) + α(Vin[n]+Vin[n+1])
+            const Vc_trap  = (Vc*(1-alpha) + alpha*(Vin_n+Vin_next)) / (1+alpha);
+            // Forward-Euler estimate for LTE:
+            const Vc_euler = Vc + h * (Vin_n - Vc) / tau;
+            const ref      = Math.abs(Vc_trap) + Math.abs(amplitude) * 1e-4 + 1e-15;
+            const lte      = Math.abs(Vc_trap - Vc_euler) / ref;
+
+            if (lte > 1e-3 && h > T/1e6) { h *= 0.5; continue; }
+
+            t  += h; Vc = Vc_trap;
+            t_out.push(t); vc_out.push(Vc); vin_out.push(Vin_next);
+
+            if (lte < 1e-5) h = Math.min(h*2, tau/20);
+        }
+
+        // ── metrics ──
+        const vFinal = signalType === 'step' ? amplitude : null;
+        let riseTime = null, settleTime = null;
+        if (vFinal) {
+            let t10 = null, t90 = null;
+            for (let i = 0; i < vc_out.length; i++) {
+                if (t10===null && vc_out[i] >= 0.1*vFinal) t10 = t_out[i];
+                if (t90===null && vc_out[i] >= 0.9*vFinal) t90 = t_out[i];
+            }
+            if (t10!==null && t90!==null) riseTime = t90 - t10;
+            for (let i = vc_out.length-1; i >= 0; i--) {
+                if (Math.abs(vc_out[i]-vFinal) > 0.02*vFinal) { settleTime = t_out[i]; break; }
+            }
+        }
+
+        const annotations = [
+            { question: 'Time Constant (τ)', answer: formatTime(tau) }
+        ];
+        if (riseTime  !== null) annotations.push({ question: 'Rise Time (10%→90%)', answer: formatTime(riseTime) });
+        if (settleTime!== null) annotations.push({ question: 'Settling Time (2%)',  answer: formatTime(settleTime) });
+
+        return {
+            t: t_out, vout: vc_out, vin: vin_out,
+            description: `RC Transient — τ = ${formatTime(tau)}, ${signalType} input @ ${formatFreq(fChar)}`,
+            annotations, tau,
+            vFinal: signalType === 'step' ? amplitude : null
+        };
+    }
+
+    // ── Series RLC Circuit ────────────────────────────────────────
+    if (circuitType === 'rlc' && R_comps.length > 0 && L_comps.length > 0 && C_comps.length > 0) {
+        const R = R_comps[0].value;
+        const L = L_comps[0].value;
+        const C = C_comps[0].value;
+
+        const omega0 = 1/Math.sqrt(L*C);
+        const f0     = omega0/(2*Math.PI);
+        const alpha  = R/(2*L);              // neper frequency
+        const zetaD  = alpha/omega0;         // damping ratio
+        const Tperiod = 2*Math.PI/omega0;
+        const tauEnv  = 2*L/R;
+        const T       = Math.max(10*tauEnv, 5*Tperiod);
+        const h0      = T/1000;
+
+        function vinFn(t) {
+            switch (signalType) {
+                case 'sine':   return amplitude * Math.sin(omega0*t);  // at resonant
+                case 'square': return amplitude * (Math.floor(2*t/Tperiod)%2===0 ? 1 : -1);
+                case 'pulse':  return (t >= 0 && t <= Tperiod) ? amplitude : 0;
+                default:       return amplitude; // step
+            }
+        }
+
+        // State: [IL, Vc]
+        // dIL/dt = (Vin - R·IL - Vc)/L
+        // dVc/dt = IL/C
+        //
+        // Trapezoidal 2×2 system (a=h/(2L), b=h/(2C)):
+        // [1+aR,  a ] [IL_n+1]   [(1-aR)·IL - a·Vc + a(Vin_n+Vin_n+1)]
+        // [-b,    1 ] [Vc_n+1] = [b·IL + Vc                           ]
+
+        const t_out=[0], vc_out=[0], il_out=[0], vin_out=[vinFn(0)];
+        let t=0, IL=0, Vc=0, h=h0;
+        const maxPts = 8000;
+
+        while (t < T && t_out.length < maxPts) {
+            const Vin_n    = vinFn(t);
+            const Vin_next = vinFn(t+h);
+            const a = h/(2*L), b = h/(2*C);
+
+            const rhs1 = (1-a*R)*IL - a*Vc + a*(Vin_n+Vin_next);
+            const rhs2 = b*IL + Vc;
+            const det  = (1+a*R) + a*b;          // det = (1+aR)·1 - a·(-b)
+            const IL_n = (rhs1 - a*rhs2) / det;
+            const Vc_n = ((1+a*R)*rhs2 + b*rhs1) / det;
+
+            // Forward Euler for LTE
+            const IL_e = IL + h*(Vin_n - R*IL - Vc)/L;
+            const Vc_e = Vc + h*IL/C;
+            const ref  = Math.max(Math.abs(Vc_n), Math.abs(IL_n), Math.abs(amplitude))*1e-3 + 1e-15;
+            const lte  = Math.max(Math.abs(Vc_n-Vc_e), Math.abs(IL_n-IL_e)) / ref;
+
+            if (lte > 1e-3 && h > T/1e6) { h *= 0.5; continue; }
+
+            t+=h; IL=IL_n; Vc=Vc_n;
+            t_out.push(t); vc_out.push(Vc); il_out.push(IL); vin_out.push(Vin_next);
+
+            if (lte < 1e-5) h = Math.min(h*2, Tperiod/40);
+        }
+
+        const damping = zetaD < 0.999 ? 'Under-damped (oscillatory)'
+                      : zetaD > 1.001 ? 'Over-damped (no oscillation)'
+                      : 'Critically damped';
+
+        return {
+            t: t_out, vout: vc_out, vin: vin_out, il: il_out,
+            description: `RLC Transient — f₀ = ${formatFreq(f0)}, ζ = ${zetaD.toFixed(4)}, ${signalType} input`,
+            annotations: [
+                { question: 'Natural Frequency (f₀)', answer: formatFreq(f0) },
+                { question: 'Damping Type',           answer: damping },
+                { question: 'Damping Ratio (ζ)',      answer: zetaD.toFixed(4) },
+                { question: 'Envelope Time Constant', answer: formatTime(tauEnv) }
+            ],
+            tau: null,
+            vFinal: signalType === 'step' ? amplitude : null
+        };
+    }
+
+    return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DARK-THEMED TRANSIENT PLOT RENDERER
+// ═══════════════════════════════════════════════════════════════════
+function drawTransientPlot(transData) {
+    const { t, vout, vin: vin_arr, tau, vFinal } = transData;
+    const W = 920, H = 460;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#0a0e1a';
+    ctx.fillRect(0, 0, W, H);
+
+    const PAD = { left: 80, right: 25, top: 40, bottom: 52 };
+    const CW  = W - PAD.left - PAD.right;
+    const CH  = H - PAD.top - PAD.bottom;
+
+    const tMax   = t[t.length-1];
+    const allV   = [...vout, ...(vin_arr||[])].filter(isFinite);
+    const vLo    = Math.min(...allV);
+    const vHi    = Math.max(...allV);
+    const vPad   = (vHi - vLo) * 0.12 || 0.1;
+    const yMin   = vLo - vPad;
+    const yMax   = vHi + vPad;
+
+    const toX = time  => PAD.left + (time/tMax)*CW;
+    const toY = v     => PAD.top  + CH - (v-yMin)/(yMax-yMin)*CH;
+
+    // chart bg + border
+    ctx.fillStyle = '#0f1420';
+    ctx.fillRect(PAD.left, PAD.top, CW, CH);
+    ctx.strokeStyle = '#1e3048'; ctx.lineWidth = 1;
+    ctx.strokeRect(PAD.left, PAD.top, CW, CH);
+
+    // title
+    ctx.fillStyle = '#e1f5fe';
+    ctx.font = 'bold 15px "Segoe UI", Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Transient Analysis — Time Domain Response', W/2, 24);
+
+    // ── grid ──
+    const nV = 6;
+    ctx.lineWidth = 0.7;
+    for (let i = 0; i <= nV; i++) {
+        const v  = yMin + (yMax-yMin)*i/nV;
+        const y  = toY(v);
+        ctx.strokeStyle = Math.abs(v) < (yMax-yMin)*0.02 ? '#253550' : '#182535';
+        ctx.setLineDash(Math.abs(v) < (yMax-yMin)*0.02 ? [5,4] : []);
+        ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left+CW, y); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    const nT = 5;
+    for (let i = 0; i <= nT; i++) {
+        const x = toX(tMax*i/nT);
+        ctx.strokeStyle = '#182535'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(x, PAD.top); ctx.lineTo(x, PAD.top+CH); ctx.stroke();
+    }
+
+    // ── 63.2% / tau marker ──
+    if (tau && vFinal) {
+        const x63 = toX(tau);
+        const y63 = toY(vFinal * 0.632);
+        ctx.strokeStyle = '#00ff6a'; ctx.lineWidth = 1.2;
+        ctx.setLineDash([5,4]);
+        ctx.beginPath(); ctx.moveTo(x63, PAD.top); ctx.lineTo(x63, PAD.top+CH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(PAD.left, y63); ctx.lineTo(PAD.left+CW, y63); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath(); ctx.arc(x63, y63, 5.5, 0, 2*Math.PI); ctx.fill();
+        ctx.fillStyle = '#00ff6a';
+        ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('τ (63.2%)', x63, PAD.top - 6);
+    }
+
+    // ── final value dashed line ──
+    if (vFinal) {
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+        ctx.setLineDash([8, 4]);
+        const yF = toY(vFinal);
+        ctx.beginPath(); ctx.moveTo(PAD.left, yF); ctx.lineTo(PAD.left+CW, yF); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#888'; ctx.font = '10px Arial'; ctx.textAlign = 'right';
+        ctx.fillText(`V_final = ${vFinal.toFixed(3)}V`, PAD.left+CW-4, yF-4);
+    }
+
+    // ── Vin (dashed orange) ──
+    if (vin_arr && vin_arr.length > 0) {
+        ctx.strokeStyle = '#ff9900'; ctx.lineWidth = 1.5;
+        ctx.setLineDash([7, 5]);
+        ctx.shadowColor = 'rgba(255,153,0,0.3)'; ctx.shadowBlur = 3;
+        ctx.beginPath();
+        t.forEach((ti, i) => { const x=toX(ti), y=toY(vin_arr[i]); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+        ctx.stroke();
+        ctx.setLineDash([]); ctx.shadowBlur = 0;
+    }
+
+    // ── Vout (solid cyan) ──
+    ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(0,212,255,0.35)'; ctx.shadowBlur = 4;
+    ctx.beginPath();
+    t.forEach((ti, i) => { const x=toX(ti), y=toY(vout[i]); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.stroke(); ctx.shadowBlur = 0;
+
+    // ── y-axis labels ──
+    ctx.fillStyle = '#b3e5fc'; ctx.font = '11px Arial'; ctx.textAlign = 'right';
+    for (let i = 0; i <= nV; i++) {
+        const v  = yMin + (yMax-yMin)*i/nV;
+        const y  = toY(v);
+        ctx.fillText(`${v.toFixed(3)}V`, PAD.left-6, y+4);
+    }
+
+    // ── x-axis labels ──
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= nT; i++) {
+        const ti = tMax*i/nT;
+        ctx.fillText(formatTime(ti), toX(ti), PAD.top+CH+18);
+    }
+
+    // ── axis labels ──
+    ctx.save();
+    ctx.translate(16, PAD.top+CH/2); ctx.rotate(-Math.PI/2);
+    ctx.fillStyle = '#b3e5fc'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('Voltage (V)', 0, 0);
+    ctx.restore();
+    ctx.fillStyle = '#b3e5fc'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('Time', W/2, H-6);
+
+    // ── legend ──
+    const lx = PAD.left+CW-195, ly = PAD.top+8;
+    ctx.fillStyle = 'rgba(10,14,26,0.85)';
+    ctx.fillRect(lx-8, ly-4, 185, 52);
+    ctx.strokeStyle = '#1e3048'; ctx.lineWidth = 1;
+    ctx.strokeRect(lx-8, ly-4, 185, 52);
+
+    ctx.strokeStyle = '#ff9900'; ctx.lineWidth = 1.5; ctx.setLineDash([7,5]);
+    ctx.beginPath(); ctx.moveTo(lx, ly+10); ctx.lineTo(lx+28, ly+10); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ff9900'; ctx.font = '12px Arial'; ctx.textAlign = 'left';
+    ctx.fillText('Vin (input)', lx+34, ly+15);
+
+    ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(lx, ly+32); ctx.lineTo(lx+28, ly+32); ctx.stroke();
+    ctx.fillStyle = '#00d4ff';
+    ctx.fillText('Vout (capacitor)', lx+34, ly+37);
+
+    return canvas.toDataURL();
+}
+
+
 
 function formatValue(value, unit) {
     if (unit === 'Ω') {
