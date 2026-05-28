@@ -642,7 +642,12 @@ def get_status():
     return jsonify({
         "connected": matlab_mgr.is_connected(),
         "matlab_available": MATLAB_AVAILABLE,
-        "backend_ready": True
+        "backend_ready": True,
+        # Diagnostic: True if the server actually loaded a GROQ_API_KEY at startup.
+        # Never exposes the key itself — just whether it's present.
+        "groq_key_loaded": bool(GROQ_API_KEY),
+        "groq_key_length": len(GROQ_API_KEY) if GROQ_API_KEY else 0,
+        "groq_model": GROQ_MODEL,
     })
 
 @app.route('/api/circuit/optimize', methods=['POST', 'OPTIONS'])
@@ -1109,6 +1114,14 @@ def chat():
         except Exception as e:
             logger.warning(f'Local modification path failed, falling back to LLM: {e}')
 
+        # ── FAST-PATH: answer "which E-series?" locally (no LLM, works for all types) ──
+        try:
+            es_reply = _try_local_eseries_answer(user_message, current_circuit)
+            if es_reply:
+                return jsonify({'reply': es_reply, 'analysis': None, 'unsupported_topic': None})
+        except Exception as e:
+            logger.warning(f'Local E-series path failed, falling back to LLM: {e}')
+
         if not GROQ_API_KEY:
             return jsonify({
                 'reply': (
@@ -1449,6 +1462,72 @@ def _local_summary(res):
     for a in (res.get('direct_answers') or [])[:5]:
         bullets.append(f"{a['question']} = {a['answer']}")
     return "Updated circuit: " + "; ".join(bullets) if bullets else "See the main panel for the updated circuit."
+
+
+def _fmt_eseries_val(name, v):
+    """Format an E-series component value with the right unit based on its name."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    n = (name or '').upper()
+    if n.startswith('C'):
+        if v < 1e-9:  return f"{v*1e12:g}pF"
+        if v < 1e-6:  return f"{v*1e9:g}nF"
+        if v < 1e-3:  return f"{v*1e6:g}µF"
+        return f"{v:g}F"
+    if n.startswith('L'):
+        if v < 1e-3:  return f"{v*1e6:g}µH"
+        if v < 1:     return f"{v*1e3:g}mH"
+        return f"{v:g}H"
+    if v >= 1e6:  return f"{v/1e6:g}MΩ"
+    if v >= 1e3:  return f"{v/1e3:g}kΩ"
+    return f"{v:g}Ω"
+
+
+def _try_local_eseries_answer(message, current_circuit):
+    """
+    Answer 'which E-series should I use?' LOCALLY (no LLM) using the
+    standard_values already in the circuit context. Works for EVERY circuit
+    type (RC, RL, RLC, voltage divider, op-amp), so it never depends on the
+    LLM correctly classifying the question as in-scope. Returns a text answer,
+    or None if this isn't an E-series question / no standard_values available.
+    """
+    if not current_circuit:
+        return None
+    msg = (message or '').lower()
+    if not re.search(r'e-?\s?series|\be12\b|\be24\b|\be96\b|standard\s+(value|component|resistor|cap)|which\s+series', msg):
+        return None
+    opt = current_circuit.get('optimization_data') or {}
+    sv = current_circuit.get('standard_values') or opt.get('standard_values')
+    if not sv:
+        return None
+
+    def tier_err(variant):
+        ach = (variant or {}).get('achieved') or {}
+        if 'max_error_pct' in ach:
+            return abs(float(ach['max_error_pct']))
+        if 'error' in ach:
+            return abs(float(ach['error']))
+        return 0.0
+
+    by_name = {v.get('name'): v for v in sv}
+    lines = ["Here are the closest standard (E-series) values for your circuit:"]
+    for v in sv:
+        comps = ', '.join(f"{k}={_fmt_eseries_val(k, val)}"
+                          for k, val in (v.get('components') or {}).items())
+        lines.append(f"• {v.get('name')}: {comps}  (worst-case error {tier_err(v):.2f}%)")
+
+    e12_err = tier_err(by_name.get('E12')) if by_name.get('E12') else 99
+    e24_err = tier_err(by_name.get('E24')) if by_name.get('E24') else 99
+    if e12_err < 10:
+        rec = "E12 (10% tolerance) — cheapest and most widely available, and the error is small for your values."
+    elif e24_err < 5:
+        rec = "E24 (5% tolerance) — easy to source with good accuracy."
+    else:
+        rec = "E96 (1% tolerance) — use this for precision; E12/E24 introduce too much error here."
+    lines.append(f"\nRecommendation: {rec}")
+    return '\n'.join(lines)
 
 
 def _run_optimization(goal, target_value, vin=12):
