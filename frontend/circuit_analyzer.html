@@ -505,6 +505,164 @@
                 justify-content: center;
                 text-align: center;
             }
+        /* ── AI Chat Panel ────────────────────────────────────── */
+        .chat-bubble {
+            position: fixed; bottom: 24px; right: 24px;
+            width: 64px; height: 64px; border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #2563eb);
+            color: white; font-size: 28px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 6px 24px rgba(0,212,255,0.4);
+            border: none; z-index: 9999;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .chat-bubble:hover { transform: scale(1.08); box-shadow: 0 8px 32px rgba(0,212,255,0.6); }
+        .chat-bubble.hidden { display: none; }
+
+        .chat-panel {
+            position: fixed; bottom: 24px; right: 24px;
+            width: 420px; max-width: calc(100vw - 32px);
+            height: 600px; max-height: calc(100vh - 48px);
+            background: #0f1729; border: 1px solid #1e3a5f; border-radius: 14px;
+            box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; z-index: 9999;
+            overflow: hidden;
+            font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        .chat-panel.hidden { display: none; }
+
+        .chat-header {
+            background: linear-gradient(135deg, #1e3a5f, #0f1729);
+            color: #e1f5fe; padding: 14px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #1e3a5f;
+        }
+        .chat-header-title { font-weight: 700; font-size: 15px; letter-spacing: 0.5px; }
+        .chat-header-actions button {
+            background: transparent; color: #94a3b8; border: none;
+            font-size: 18px; cursor: pointer; padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .chat-header-actions button:hover { background: rgba(255,255,255,0.08); color: #e1f5fe; }
+
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 16px;
+            display: flex; flex-direction: column; gap: 12px;
+            scrollbar-width: thin; scrollbar-color: #334155 transparent;
+        }
+        .chat-messages::-webkit-scrollbar { width: 6px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+        .chat-msg {
+            max-width: 85%; padding: 10px 14px; border-radius: 12px;
+            font-size: 14px; line-height: 1.5; word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        .chat-msg.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            color: white; border-bottom-right-radius: 4px;
+        }
+        .chat-msg.assistant {
+            align-self: flex-start; background: #1a2138;
+            color: #e2e8f0; border-bottom-left-radius: 4px;
+            border: 1px solid #1e3a5f;
+        }
+        .chat-msg.thinking {
+            color: #64748b; font-style: italic;
+        }
+        .chat-msg.system {
+            align-self: center; background: rgba(0,212,255,0.08);
+            color: #94a3b8; font-size: 12px; padding: 6px 12px;
+            border-radius: 8px; border: 1px solid rgba(0,212,255,0.2);
+        }
+
+        .chat-input-area {
+            padding: 12px; background: #0a0e1a; border-top: 1px solid #1e3a5f;
+            display: flex; gap: 8px;
+        }
+        .chat-input-area input {
+            flex: 1; background: #1a2138; color: #e1f5fe;
+            border: 1px solid #1e3a5f; border-radius: 8px;
+            padding: 10px 14px; font-size: 14px; outline: none;
+            font-family: inherit;
+        }
+        .chat-input-area input:focus { border-color: #00d4ff; }
+        .chat-input-area button {
+            background: linear-gradient(135deg, #00d4ff, #2563eb);
+            color: white; border: none; border-radius: 8px;
+            padding: 0 18px; font-weight: 600; cursor: pointer;
+            font-size: 14px;
+        }
+        .chat-input-area button:hover { filter: brightness(1.1); }
+        .chat-input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Feedback form (shown for unsupported topics) */
+        .chat-feedback {
+            align-self: stretch; background: rgba(234,88,12,0.08);
+            border: 1px solid rgba(234,88,12,0.35); border-radius: 10px;
+            padding: 12px; margin: 4px 0;
+        }
+        .chat-feedback-title {
+            color: #fbbf24; font-weight: 600; font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .chat-feedback textarea {
+            width: 100%; min-height: 60px; background: #0a0e1a;
+            color: #e1f5fe; border: 1px solid #1e3a5f; border-radius: 6px;
+            padding: 8px; font-size: 13px; font-family: inherit;
+            resize: vertical; outline: none; box-sizing: border-box;
+        }
+        .chat-feedback textarea:focus { border-color: #00d4ff; }
+        .chat-feedback-actions {
+            display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end;
+        }
+        .chat-feedback button {
+            background: linear-gradient(135deg, #fbbf24, #ea580c);
+            color: white; border: none; border-radius: 6px;
+            padding: 6px 14px; font-weight: 600; cursor: pointer;
+            font-size: 12px;
+        }
+        .chat-feedback button.secondary {
+            background: transparent; color: #94a3b8;
+            border: 1px solid #1e3a5f;
+        }
+        .chat-feedback-sent {
+            color: #10b981; font-size: 12px; text-align: center;
+            padding: 8px;
+        }
+
+        /* "Ask me anything!" toast — appears above the chat for 3.5 s
+           after every successful analyze/optimize so new users discover it */
+        .chat-ping {
+            position: fixed; z-index: 10001;
+            background: linear-gradient(135deg, #fbbf24, #ea580c);
+            color: white; padding: 11px 20px; border-radius: 24px;
+            font-weight: 700; font-size: 13.5px; letter-spacing: 0.3px;
+            box-shadow: 0 8px 28px rgba(234,88,12,0.55), 0 0 0 1px rgba(255,255,255,0.12);
+            pointer-events: none;
+            white-space: nowrap;
+            font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+            animation: chatPingIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                       chatPingOut 0.5s ease-in 3s forwards;
+        }
+        .chat-ping::after {
+            content: ''; position: absolute; bottom: -8px; right: 32px;
+            width: 0; height: 0;
+            border-left: 9px solid transparent;
+            border-right: 9px solid transparent;
+            border-top: 10px solid #ea580c;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
+        }
+        @keyframes chatPingIn {
+            0%   { transform: translateY(18px) scale(0.85); opacity: 0; }
+            60%  { transform: translateY(-5px) scale(1.05); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes chatPingOut {
+            from { opacity: 1; transform: translateY(0); }
+            to   { opacity: 0; transform: translateY(-14px); }
+        }
     </style>
 </head>
     <body>
@@ -702,6 +860,17 @@ Examples:
                 return;
             }
 
+            // Quick local check for obvious out-of-scope topics. If the query
+            // mentions motors/MOSFETs/etc, skip the analyze API entirely and
+            // route to the chat (which shows the feedback form).
+            if (typeof detectUnsupportedTopic === 'function') {
+                const topic = detectUnsupportedTopic(query);
+                if (topic) {
+                    showUnsupportedInChat(topic, query);
+                    return;
+                }
+            }
+
             showLoading();
             disableAnalyzeButton();
 
@@ -716,7 +885,7 @@ Examples:
                 const analysisType = document.getElementById('analysisType').value;
 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/circuit/optimize`, {
+                    const response = await fetch(`${API_BASE_URL}/circuit/analyze`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -731,12 +900,34 @@ Examples:
                     if (response.ok) {
                         const results = await response.json();
                         if (results.success) {
+                            // Enrich backend results with rich JS analysis (Bode plot, transient,
+                            // extra annotations). The backend handles parsing + basic calcs + diagram;
+                            // the JS layer adds the dark-themed plots and detailed freq/time metrics.
+                            enhanceWithJSAnalysis(results, options);
                             displayResults(results);
+                            // Save for chat agent so "I want 2.6V" type questions have context
+                            if (typeof currentCircuitContext !== 'undefined') {
+                                currentCircuitContext = results;
+                                // Also compute E12/E24/E96 snapping for the analyzed
+                                // components, so the chat can answer "which E-series?"
+                                // questions for ANY analyzed circuit (not just optimizer output).
+                                try {
+                                    const sv = computeStandardValuesForAnalyzedCircuit(
+                                        (results.parsed_data && results.parsed_data.components) || []
+                                    );
+                                    if (sv) currentCircuitContext.standard_values = sv;
+                                } catch (e) { console.warn('E-series compute failed:', e); }
+                            }
+                            // Auto-open the chat with a contextual greeting
+                            if (typeof autoOpenChatWithGreeting === 'function') {
+                                autoOpenChatWithGreeting(results);
+                            }
                         } else {
                             throw new Error(results.error || 'Analysis failed');
                         }
                     } else {
-                        throw new Error(`Server error: ${response.status}`);
+                        const errBody = await response.json().catch(() => ({}));
+                        throw new Error(errBody.error || `Server error: ${response.status}`);
                     }
                 } catch (fetchError) {
                     console.warn('Backend unavailable, using offline analysis:', fetchError.message);
@@ -745,7 +936,19 @@ Examples:
                     displayResults(results);
                 }
             } catch (error) {
-                showError('Analysis failed: ' + error.message);
+                // If the query doesn't even contain circuit-like tokens (R=, C=,
+                // L=, ohm, V, voltage divider, RC filter, etc.), it's probably an
+                // out-of-scope or vague request — hand it off to the chat agent which
+                // can clarify or call report_unsupported.
+                const looksLikeCircuit =
+                    /\b(?:R\d*|C\d*|L\d*|V(?:in)?|R[fF])\s*=/i.test(query) ||
+                    /\d+\s*(?:k?(?:ohm|Ω)|[mu]?[FH]|m?H|V|volts?)\b/i.test(query) ||
+                    /\b(?:voltage\s*divider|rc\s*(?:filter|circuit|low.?pass|high.?pass)|rl\s*circuit|rlc|op.?amp|op\s*amp|resistor|capacitor|inductor|series\s*circuit|parallel\s*circuit)\b/i.test(query);
+                if (!looksLikeCircuit && typeof handOffToChat === 'function') {
+                    handOffToChat(query);
+                } else {
+                    showError('Analysis failed: ' + error.message);
+                }
             } finally {
                 enableAnalyzeButton();
             }
@@ -1542,7 +1745,7 @@ Examples:
                 <div class="success-box">
                     <h3>Analysis Complete</h3>
                     <p>Circuit analyzed successfully with ${data.parsed_data.components.length} components detected!</p>
-                    <p><strong>Circuit Type:</strong> ${data.parsed_data.circuitType.replace('_', ' ').toUpperCase()}</p>
+                    <p><strong>Circuit Type:</strong> ${(data.parsed_data.circuit_type || data.parsed_data.circuitType || 'unknown').replace(/_/g, ' ').toUpperCase()}</p>
                 </div>
             `;
             
@@ -1987,16 +2190,20 @@ async function runOptimization() {
                 vout: parseFloat(document.getElementById('opt_vout').value)
             };
             constraints.max_power = parseFloat(document.getElementById('opt_max_power').value);
+            window.__lastOptVin = target.vin;
+            window.__lastOptTarget = target.vout;
         } else if (type === 'rc_filter') {
             target = {
                 cutoff_frequency: parseFloat(document.getElementById('opt_fc').value)
             };
             constraints.c_min = 1e-12;
             constraints.c_max = 1e-3;
+            window.__lastOptTarget = target.cutoff_frequency;
         } else if (type === 'op_amp_gain') {
             target = {
                 gain: parseFloat(document.getElementById('opt_gain').value)
             };
+            window.__lastOptTarget = target.gain;
         }
         
         const response = await fetch(`${API_BASE_URL}/circuit/optimize`, {
@@ -2018,6 +2225,19 @@ async function runOptimization() {
             const results = await response.json();
             if (results.success) {
                 displayOptimizationResults(results);
+                // Auto-open chat with a brief greeting tied to the optimization
+                if (typeof toggleChat === 'function') {
+                    const panel = document.getElementById('chatPanel');
+                    const wasOpen = panel && !panel.classList.contains('hidden');
+                    if (!wasOpen) toggleChat(true);
+                    const comps = Object.entries(results.optimized_components || {})
+                        .map(([k, v]) => `${k}=${typeof v === 'number' ? v.toExponential(2) : v}`)
+                        .join(', ');
+                    const greeting = `Optimization complete (${results.optimization_type}). Found: ${comps}. Ask me to explain it, refine the target, or try different constraints.`;
+                    appendChatMessage('assistant', greeting);
+                    chatHistory.push({ role: 'assistant', content: greeting });
+                    if (typeof pingChat === 'function') pingChat();
+                }
             } else {
                 throw new Error(results.error || 'Optimization failed');
             }
@@ -2093,7 +2313,13 @@ function displayOptimizationResults(data) {
     });
     
     html += `</div></div>`;
-    
+
+    // ── Compute E12/E24/E96 snapped variants ────────────────────────
+    const standardVariants = computeStandardVariants(data);
+
+    // ── Render the standard-values UI ───────────────────────────────
+    html += renderStandardValuesBox(data, standardVariants);
+
     html += `
         <div class="result-section">
             <div class="result-title">📈 Genetic Algorithm Convergence</div>
@@ -2103,23 +2329,196 @@ function displayOptimizationResults(data) {
             </div>
         </div>
     `;
-    
+
+    document.getElementById('resultContainer').innerHTML = html;
+
+    // ── Save to currentCircuitContext so the chat agent can reason about
+    //     the optimization result AND the snapped E-series options.
+    currentCircuitContext = {
+        success: true,
+        parsed_data: {
+            circuit_type: data.optimization_type,
+            original_query: `optimize ${data.optimization_type} for target ${window.__lastOptTarget}`,
+            components: Object.entries(data.optimized_components || {}).map(([name, value]) => ({
+                name: name,
+                value: value,
+                unit: name.toLowerCase().includes('c') ? 'F' : (name.toLowerCase().includes('l') ? 'H' : 'Ω'),
+            })),
+        },
+        direct_answers: Object.entries(data.achieved_metrics || {}).map(([key, value]) => ({
+            question: formatTitle(key),
+            answer: typeof value === 'number'
+                ? (key.includes('current') ? `${(value * 1000).toFixed(3)} mA`
+                  : key.includes('power')   ? `${(value * 1000).toFixed(3)} mW`
+                  : key.includes('frequency') || key === 'fc' ? `${value.toFixed(2)} Hz`
+                  : key.includes('vout')    ? `${value.toFixed(3)} V`
+                  : key.includes('gain')    ? value.toFixed(3)
+                  : key.includes('error')   ? `${value.toFixed(4)}%`
+                  : value.toFixed(4))
+                : String(value),
+        })),
+        optimization_data: {
+            goal: data.optimization_type,
+            target: window.__lastOptTarget,
+            vin: window.__lastOptVin,
+            standard_values: standardVariants,   // ← chat now SEES the E12/E24/E96 box
+        },
+    };
+}
+
+// ── E-series standard values (decade 1.0 - 9.99) ────────────────────────
+const E12_DECADE = [1.0,1.2,1.5,1.8,2.2,2.7,3.3,3.9,4.7,5.6,6.8,8.2];
+const E24_DECADE = [1.0,1.1,1.2,1.3,1.5,1.6,1.8,2.0,2.2,2.4,2.7,3.0,3.3,3.6,3.9,4.3,4.7,5.1,5.6,6.2,6.8,7.5,8.2,9.1];
+const E96_DECADE = [
+    1.00,1.02,1.05,1.07,1.10,1.13,1.15,1.18,1.21,1.24,1.27,1.30,1.33,1.37,1.40,1.43,
+    1.47,1.50,1.54,1.58,1.62,1.65,1.69,1.74,1.78,1.82,1.87,1.91,1.96,2.00,2.05,2.10,
+    2.15,2.21,2.26,2.32,2.37,2.43,2.49,2.55,2.61,2.67,2.74,2.80,2.87,2.94,3.01,3.09,
+    3.16,3.24,3.32,3.40,3.48,3.57,3.65,3.74,3.83,3.92,4.02,4.12,4.22,4.32,4.42,4.53,
+    4.64,4.75,4.87,4.99,5.11,5.23,5.36,5.49,5.62,5.76,5.90,6.04,6.19,6.34,6.49,6.65,
+    6.81,6.98,7.15,7.32,7.50,7.68,7.87,8.06,8.25,8.45,8.66,8.87,9.09,9.31,9.53,9.76,
+];
+
+/** Snap an arbitrary positive value to the closest value in the given E-series. */
+function snapToEseries(value, series) {
+    if (!isFinite(value) || value <= 0) return value;
+    const decade = Math.pow(10, Math.floor(Math.log10(value)));
+    const mantissa = value / decade;
+    // Best candidate within this decade
+    let best = series[0], bestErr = Math.abs(mantissa - series[0]);
+    for (const v of series) {
+        const e = Math.abs(mantissa - v);
+        if (e < bestErr) { best = v; bestErr = e; }
+    }
+    // Also check adjacent decades (e.g. value=9.5 should snap to 10 in next decade)
+    const upper = series[0] * 10;     // first value of next decade
+    if (Math.abs(mantissa - upper) < bestErr) { best = upper; bestErr = Math.abs(mantissa - upper); }
+    const lower = series[series.length - 1] / 10; // last value of previous decade
+    if (Math.abs(mantissa - lower) < bestErr) { best = lower; bestErr = Math.abs(mantissa - lower); }
+    return best * decade;
+}
+
+/** Recompute the achieved metric using snapped component values.
+ *  Returns {metric_name: value} mirroring the keys used by the backend. */
+function recomputeAchieved(optType, comps, vin) {
+    const out = {};
+    if (optType === 'voltage_divider') {
+        const r1 = comps.R1, r2 = comps.R2;
+        out.vout = vin * r2 / (r1 + r2);
+        out.error = Math.abs(out.vout - (window.__lastOptTarget || out.vout)) / Math.max(window.__lastOptTarget || 1, 0.001) * 100;
+        out.current = vin / (r1 + r2);
+        out.power = vin * out.current;
+    } else if (optType === 'rc_filter') {
+        const r = comps.R, c = comps.C;
+        out.fc = 1 / (2 * Math.PI * r * c);
+        out.error = Math.abs(out.fc - (window.__lastOptTarget || out.fc)) / Math.max(window.__lastOptTarget || 1, 0.001) * 100;
+    } else if (optType === 'op_amp_gain') {
+        const rf = comps.Rf, r1 = comps.R1;
+        out.gain = 1 + rf / r1;   // non-inverting topology used by the optimizer
+        out.error = Math.abs(out.gain - (window.__lastOptTarget || out.gain)) / Math.max(window.__lastOptTarget || 1, 0.001) * 100;
+    }
+    return out;
+}
+
+function computeStandardVariants(data) {
+    const comps = data.optimized_components || {};
+    const optType = data.optimization_type;
+    const vin = window.__lastOptVin || 12;
+    const series = { E12: E12_DECADE, E24: E24_DECADE, E96: E96_DECADE };
+    return ['E12', 'E24', 'E96'].map(name => {
+        const snapped = {};
+        for (const [k, v] of Object.entries(comps)) {
+            snapped[k] = snapToEseries(v, series[name]);
+        }
+        const achieved = recomputeAchieved(optType, snapped, vin);
+        return { name, components: snapped, achieved };
+    });
+}
+
+/** E-series snapping for an arbitrary list of analyzed components.
+ *  Input: components from parsed_data (each has name, value, type).
+ *  Output: array of {name: 'E12'|'E24'|'E96', components: {name: snapped_value}, achieved: {max_error_pct}} */
+function computeStandardValuesForAnalyzedCircuit(components) {
+    if (!components || !components.length) return null;
+    const relevant = components.filter(c =>
+        ['resistor', 'capacitor', 'inductor'].includes((c.type || '').toLowerCase())
+    );
+    if (!relevant.length) return null;
+    const series = { E12: E12_DECADE, E24: E24_DECADE, E96: E96_DECADE };
+    return ['E12', 'E24', 'E96'].map(name => {
+        const snapped = {};
+        let maxErr = 0;
+        for (const c of relevant) {
+            const v = parseFloat(c.value);
+            if (!isFinite(v) || v <= 0) continue;
+            const s = snapToEseries(v, series[name]);
+            snapped[c.name] = s;
+            const err = Math.abs(s - v) / v * 100;
+            if (err > maxErr) maxErr = err;
+        }
+        return { name, components: snapped, achieved: { max_error_pct: +maxErr.toFixed(2) } };
+    });
+}
+
+function renderStandardValuesBox(data, variants) {
+    if (!variants) variants = computeStandardVariants(data);
+
+    const fmtComp = (name, v) =>
+        name.includes('R') ? formatValue(v, 'Ω')
+      : name.includes('C') ? formatValue(v, 'F')
+      :                      v.toFixed(4);
+
+    const fmtMetric = (key, v) =>
+        key === 'vout'    ? `${v.toFixed(3)} V`
+      : key === 'current' ? `${(v*1000).toFixed(3)} mA`
+      : key === 'power'   ? `${(v*1000).toFixed(3)} mW`
+      : key === 'fc'      ? (v >= 1000 ? `${(v/1000).toFixed(2)} kHz` : `${v.toFixed(1)} Hz`)
+      : key === 'gain'    ? v.toFixed(3)
+      : key === 'error'   ? `${v.toFixed(2)}% error`
+      :                     v.toFixed(4);
+
+    let html = `
+        <div class="result-section" style="background: linear-gradient(145deg, #1a1f33, #0f1420); border-color: #fbbf24;">
+            <div class="result-title" style="color: #fbbf24;">🛒 Closest Standard Values (Real Parts You Can Buy)</div>
+            <p style="color:#94a3b8; font-size:13px; margin-bottom:14px;">
+                The optimizer's ideal values snapped to industry-standard E-series. Use whichever tolerance matches your application.
+            </p>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+    `;
+
+    const seriesNote = {
+        E12: '10% tolerance · easiest to find · hobbyist',
+        E24: '5% tolerance · most stocked',
+        E96: '1% tolerance · precision designs',
+    };
+
+    for (const v of variants) {
+        const compsHtml = Object.entries(v.components)
+            .map(([k, val]) => `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed #1e3a5f;"><span style="color:#94a3b8;">${k}</span><span style="color:#fbbf24; font-weight:600; font-family:monospace;">${fmtComp(k, val)}</span></div>`)
+            .join('');
+        const metricsHtml = Object.entries(v.achieved)
+            .filter(([k]) => k !== 'error')
+            .map(([k, val]) => `<div style="font-size:12px; color:#b3e5fc;">${formatTitle(k)}: <strong>${fmtMetric(k, val)}</strong></div>`)
+            .join('');
+        const errorPct = v.achieved.error;
+        const errColor = errorPct < 1 ? '#10b981' : errorPct < 5 ? '#fbbf24' : '#ef4444';
+        html += `
+            <div style="background: rgba(15,20,32,0.6); border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="font-weight:700; color:#fbbf24; font-size:15px;">${v.name}</div>
+                    <div style="font-size:11px; color:${errColor}; font-weight:600;">${errorPct !== undefined ? errorPct.toFixed(2) + '% off target' : ''}</div>
+                </div>
+                <div style="font-size:11px; color:#64748b; margin-bottom:10px;">${seriesNote[v.name]}</div>
+                ${compsHtml}
+                <div style="margin-top:10px; padding-top:10px; border-top:1px solid #1e3a5f;">${metricsHtml}</div>
+            </div>
+        `;
+    }
+
     html += `
-        <div class="result-section" style="background: linear-gradient(145deg, #1a1f33, #0f1420); border-color: #00ff41;">
-            <div class="result-title">💡 How to Use These Values</div>
-            <div style="color: #b3e5fc; line-height: 1.8;">
-                <p><strong>The genetic algorithm has found the optimal component values for your design goals!</strong></p>
-                <ul style="margin-left: 20px; margin-top: 10px;">
-                    <li>Use standard E24 series resistors for best availability</li>
-                    <li>The error percentage shows how close the solution is to your target</li>
-                    <li>Consider using precision resistors (±1% or ±0.1%) for critical applications</li>
-                    <li>Verify power ratings of components exceed calculated dissipation</li>
-                </ul>
             </div>
         </div>
     `;
-    
-    document.getElementById('resultContainer').innerHTML = html;
+    return html;
 }
 
 function generateConvergencePlot(fitnessHistory) {
@@ -2210,6 +2609,60 @@ function onAnalysisTypeChange() {
 // ═══════════════════════════════════════════════════════════════════
 //  HELPER UTILITIES
 // ═══════════════════════════════════════════════════════════════════
+
+// Enrich a backend /analyze response with the rich JS-side analysis:
+// Bode plot, transient simulation, and the extra annotations (Rise Time,
+// Settling Time, -3dB Cutoff, DC Gain, etc.) that the JS layer produces
+// but the backend doesn't. Operates in-place on the results object.
+function enhanceWithJSAnalysis(results, options = {}) {
+    if (!results || !results.parsed_data || !results.parsed_data.components) return;
+    if (!options.generate_plots) return;
+
+    const components = results.parsed_data.components;
+    const backendType = results.parsed_data.circuit_type || '';
+    const voltageSources = components.filter(c => c.type === 'voltage_source');
+    const vin = voltageSources.length > 0 ? voltageSources[0].value : 5.0;
+
+    // Map backend snake_case circuit_type to the JS engine's internal names
+    let jsType;
+    if (backendType === 'rc_circuit' || backendType === 'rc_series') jsType = 'rc_filter';
+    else if (backendType === 'rlc_circuit' || backendType === 'rlc_series' || backendType === 'rlc') jsType = 'rlc';
+    else if (backendType === 'op_amp' || backendType === 'op_amp_noninverting' || backendType === 'op_amp_inverting') jsType = 'op_amp';
+    else jsType = backendType;
+
+    results.direct_answers = results.direct_answers || [];
+    results.plots = results.plots || [];
+
+    const hasAnswer = q => results.direct_answers.some(a => a.question === q);
+
+    // ── Frequency response (Bode plot + freq-domain annotations) ──
+    try {
+        const freqData = computeFrequencyResponse(jsType, components, vin);
+        if (freqData) {
+            freqData.annotations.forEach(a => { if (!hasAnswer(a.question)) results.direct_answers.push(a); });
+            results.plots.push({
+                title: '📊 Frequency Response — Bode Plot',
+                description: freqData.description,
+                image: drawBodePlot(freqData)
+            });
+        }
+    } catch (e) { console.warn('Bode enrichment failed:', e); }
+
+    // ── Transient simulation (only RC and RLC supported by JS engine) ──
+    try {
+        const signalType = document.getElementById('transientSignalType')?.value || 'step';
+        const transData = runTransientSimulation(jsType, components, vin, signalType);
+        if (transData) {
+            transData.annotations.forEach(a => { if (!hasAnswer(a.question)) results.direct_answers.push(a); });
+            results.plots.push({
+                title: '⏱ Transient Response',
+                description: transData.description,
+                image: drawTransientPlot(transData)
+            });
+        }
+    } catch (e) { console.warn('Transient enrichment failed:', e); }
+}
+
 function formatFreq(f) {
     if (f >= 1e9)  return `${(f/1e9).toPrecision(4)} GHz`;
     if (f >= 1e6)  return `${(f/1e6).toPrecision(4)} MHz`;
@@ -2898,15 +3351,314 @@ function drawTransientPlot(transData) {
 
 
 
-function formatValue(value, unit) {
-    if (unit === 'Ω') {
-        if (value >= 1e6) return `${(value/1e6).toFixed(2)}MΩ`;
-        if (value >= 1e3) return `${(value/1e3).toFixed(2)}kΩ`;
-        return `${value.toFixed(0)}Ω`;
+</script>
+<!-- ── AI Chat Panel ─────────────────────────────────────────── -->
+<button id="chatBubble" class="chat-bubble" onclick="toggleChat(true)" title="Open AI assistant">💬</button>
+<div id="chatPanel" class="chat-panel hidden">
+    <div class="chat-header">
+        <span class="chat-header-title">🤖 IntelliCircuit AI</span>
+        <div class="chat-header-actions">
+            <button onclick="clearChat()" title="New conversation">↺</button>
+            <button onclick="toggleChat(false)" title="Close">×</button>
+        </div>
+    </div>
+    <div id="chatMessages" class="chat-messages"></div>
+    <div class="chat-input-area">
+        <input id="chatInput" type="text" placeholder="Ask anything, or describe a circuit…"
+               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}" />
+        <button id="chatSendBtn" onclick="sendChatMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  AI Chat — wires the chat panel to /api/chat.
+//  Tracks `currentCircuitContext` (last analysis result) so the
+//  LLM can reason about "I got 2.5V, want 2.6V" type questions.
+//  Auto-opens after a successful analyze and posts a contextual greeting.
+// ═══════════════════════════════════════════════════════════════════
+
+let chatHistory = [];
+let currentCircuitContext = null;
+let chatBusy = false;
+let chatOpenedOnce = false;
+
+function toggleChat(open) {
+    const panel  = document.getElementById('chatPanel');
+    const bubble = document.getElementById('chatBubble');
+    if (open) {
+        panel.classList.remove('hidden');
+        bubble.classList.add('hidden');
+        if (!chatOpenedOnce) {
+            appendChatMessage('assistant',
+                "Hi! I'm your IntelliCircuit assistant.\n\n• Describe a circuit and I'll analyze it\n• Ask about your current results\n• Tell me your target output and I'll find the right component values"
+            );
+            chatOpenedOnce = true;
+        }
+        setTimeout(() => document.getElementById('chatInput').focus(), 50);
+    } else {
+        panel.classList.add('hidden');
+        bubble.classList.remove('hidden');
     }
-    return `${value.toFixed(2)}${unit}`;
 }
 
+function clearChat() {
+    chatHistory = [];
+    document.getElementById('chatMessages').innerHTML = '';
+    chatOpenedOnce = false;
+    appendChatMessage('assistant', 'New conversation started. What can I help you with?');
+    chatOpenedOnce = true;
+}
+
+function appendChatMessage(role, content, isThinking = false) {
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + role + (isThinking ? ' thinking' : '');
+    if (isThinking) div.dataset.thinking = '1';
+    div.textContent = content;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+}
+
+function removeThinkingMessages() {
+    document.querySelectorAll('.chat-msg[data-thinking="1"]').forEach(el => el.remove());
+}
+
+function appendFeedbackForm(topic, originalQuestion) {
+    const container = document.getElementById('chatMessages');
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-feedback';
+    // Remember what they originally asked so the "Web Search" button can re-use it
+    wrap.dataset.originalQuestion = originalQuestion || topic;
+    wrap.innerHTML = `
+        <div class="chat-feedback-title">📝 ${topic} isn't supported by IntelliCircuit yet</div>
+        <textarea placeholder="Optional: tell the team why you'd like ${topic} support…"></textarea>
+        <div class="chat-feedback-actions">
+            <button class="secondary" data-action="cancel">Skip</button>
+            <button class="secondary" data-action="websearch">🌐 Web Search</button>
+            <button data-action="send">Send feedback</button>
+        </div>
+    `;
+    container.appendChild(wrap);
+    container.scrollTop = container.scrollHeight;
+    const ta = wrap.querySelector('textarea');
+    const sendBtn = wrap.querySelector('[data-action="send"]');
+    const cancelBtn = wrap.querySelector('[data-action="cancel"]');
+    const searchBtn = wrap.querySelector('[data-action="websearch"]');
+
+    cancelBtn.onclick = () => wrap.remove();
+
+    sendBtn.onclick = async () => {
+        sendBtn.disabled = true;
+        try {
+            await fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic: topic, message: ta.value || `Wants support for ${topic}` }),
+            });
+            wrap.innerHTML = '<div class="chat-feedback-sent">✓ Feedback sent. Thanks!</div>';
+        } catch (e) {
+            wrap.innerHTML = '<div class="chat-feedback-sent" style="color:#ef4444">⚠ Could not send. Try again later.</div>';
+        }
+    };
+
+    searchBtn.onclick = async () => {
+        const question = (ta.value && ta.value.trim()) || wrap.dataset.originalQuestion;
+        searchBtn.disabled = true;
+        searchBtn.textContent = '🌐 Searching…';
+        // Append a quick "AI Brain" pill while we wait
+        appendChatMessage('system', `🌐 Asking the AI for general knowledge about "${topic}"…`);
+        try {
+            const r = await fetch('/api/chat/websearch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: question, topic: topic }),
+            });
+            const data = await r.json();
+            const reply = (data.reply || 'No answer returned.').trim();
+            appendChatMessage('assistant', '🌐 ' + reply);
+            chatHistory.push({ role: 'assistant', content: '(web search) ' + reply });
+            // Once answered, replace the form with a tidy confirmation
+            wrap.innerHTML = `
+                <div style="font-size:11px; color:#94a3b8; text-align:center; padding:4px;">
+                    Answer above is from the AI's general knowledge. Want to also send feedback to the team about adding ${topic}?
+                    <div style="margin-top:8px;">
+                        <button class="secondary" onclick="this.closest('.chat-feedback').remove()" style="padding:4px 12px;">Dismiss</button>
+                        <button onclick="(async()=>{await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:'${topic.replace(/'/g, "\\'")}',message:'Used Web Search for: ${(wrap.dataset.originalQuestion || '').replace(/'/g, "\\'")}'})}); this.closest('.chat-feedback').innerHTML='<div class=\\'chat-feedback-sent\\'>✓ Feedback sent</div>';})()" style="padding:4px 12px;">Send feedback too</button>
+                    </div>
+                </div>
+            `;
+        } catch (e) {
+            searchBtn.disabled = false;
+            searchBtn.textContent = '🌐 Web Search';
+            appendChatMessage('assistant', '⚠ Web search failed: ' + e.message);
+        }
+    };
+}
+
+function autoOpenChatWithGreeting(results) {
+    const panel = document.getElementById('chatPanel');
+    const wasOpen = !panel.classList.contains('hidden');
+    if (!wasOpen) toggleChat(true);
+    // Only post the contextual greeting once per analysis
+    const circuitType = (results.parsed_data && results.parsed_data.circuit_type) || 'circuit';
+    const friendly = circuitType.replace(/_/g, ' ');
+    const top = (results.direct_answers || []).slice(0, 2).map(a => `${a.question} = ${a.answer}`).join(', ');
+    const msg = `Analyzed your ${friendly}. ${top ? top + '. ' : ''}Want me to explain it, change a value, or hit a different target? Just ask.`;
+    appendChatMessage('assistant', msg);
+    chatHistory.push({ role: 'assistant', content: msg });
+    pingChat();
+}
+
+// ── "Ask me anything!" toast above the chat ────────────────────────
+function pingChat(text = '💬 Ask me anything!') {
+    document.querySelectorAll('.chat-ping').forEach(el => el.remove());
+    const panel  = document.getElementById('chatPanel');
+    const bubble = document.getElementById('chatBubble');
+    const target = (panel && !panel.classList.contains('hidden')) ? panel : bubble;
+    if (!target) return;
+    const ping = document.createElement('div');
+    ping.className = 'chat-ping';
+    ping.textContent = text;
+    document.body.appendChild(ping);
+    // Position the ping just above the chat (or bubble) based on actual layout
+    const rect = target.getBoundingClientRect();
+    ping.style.bottom = (window.innerHeight - rect.top + 14) + 'px';
+    ping.style.right  = Math.max(20, window.innerWidth - rect.right + 12) + 'px';
+    setTimeout(() => ping.remove(), 3700);
+}
+
+// ── Out-of-scope detection (used by main query box) ─────────────────
+const UNSUPPORTED_KEYWORDS = [
+    'induction motor', 'bldc', 'stepper motor', 'stepper', 'servo motor',
+    ' motor', 'motor ',                          // standalone "motor"
+    'vfd', 'variable frequency drive', 'motor drive',
+    'transformer',
+    'mosfet', 'bjt', 'igbt', 'jfet', 'transistor',
+    'microcontroller', 'arduino', 'esp32', 'esp8266', 'stm32', 'raspberry pi', 'pic16', 'pic18',
+    'flip flop', 'flip-flop', 'logic gate', 'nand gate', 'nor gate', 'xor gate',
+    'multiplexer', 'demultiplexer', 'shift register', 'counter circuit',
+    'rectifier', 'buck converter', 'boost converter', 'smps', 'inverter circuit',
+    'three phase', '3-phase', '3 phase', 'ac mains', '230v', '110v ac',
+    'antenna', 'waveguide', 'transmission line',
+    'solar panel', 'photovoltaic',
+    'fpga', 'asic', 'pcb routing',
+    'diode bridge', 'zener',
+];
+
+function detectUnsupportedTopic(query) {
+    if (!query) return null;
+    const q = ' ' + query.toLowerCase() + ' ';
+    for (const kw of UNSUPPORTED_KEYWORDS) {
+        if (q.includes(kw)) return kw.trim();
+    }
+    return null;
+}
+
+// User typed an unsupported topic in the MAIN query box → open chat,
+// show what they asked, explain it's unsupported, offer feedback form
+function showUnsupportedInChat(topic, originalQuery) {
+    if (typeof toggleChat !== 'function') return;
+    toggleChat(true);
+    appendChatMessage('user', originalQuery);
+    chatHistory.push({ role: 'user', content: originalQuery });
+    const msg = `IntelliCircuit doesn't support ${topic} yet. It currently handles voltage dividers, resistor networks, RC/RL/RLC circuits, and op-amps. Want to share feedback with the team about adding ${topic}?`;
+    appendChatMessage('assistant', msg);
+    chatHistory.push({ role: 'assistant', content: msg });
+    appendFeedbackForm(topic, originalQuery);
+    pingChat();
+}
+
+// Main analyze couldn't parse the query (vague / non-circuit). Hand it
+// off to the AI agent which can ask clarifying questions OR call report_unsupported.
+async function handOffToChat(originalQuery) {
+    if (typeof toggleChat !== 'function') return;
+    toggleChat(true);
+    appendChatMessage('user', originalQuery);
+    chatHistory.push({ role: 'user', content: originalQuery });
+    pingChat();
+    // Send to chat backend just like a normal chat message
+    appendChatMessage('assistant', '…thinking', true);
+    try {
+        const r = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: originalQuery,
+                history: chatHistory.slice(0, -1).slice(-10),
+                current_circuit: currentCircuitContext,
+            }),
+        });
+        const data = await r.json();
+        removeThinkingMessages();
+        const reply = data.reply || 'Could you give a bit more detail about the circuit?';
+        appendChatMessage('assistant', reply);
+        chatHistory.push({ role: 'assistant', content: reply });
+        if (data.unsupported_topic) appendFeedbackForm(data.unsupported_topic, originalQuery);
+        if (data.analysis && data.analysis.success) {
+            enhanceWithJSAnalysis(data.analysis, { show_circuit_diagram: true, generate_plots: true });
+            displayResults(data.analysis);
+            currentCircuitContext = data.analysis;
+        }
+    } catch (e) {
+        removeThinkingMessages();
+        appendChatMessage('assistant', '⚠ Could not reach the AI: ' + e.message);
+    }
+}
+
+async function sendChatMessage() {
+    if (chatBusy) return;
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSendBtn');
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = '';
+    chatBusy = true;
+    sendBtn.disabled = true;
+
+    appendChatMessage('user', message);
+    chatHistory.push({ role: 'user', content: message });
+    appendChatMessage('assistant', '…thinking', true);
+
+    try {
+        const r = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: message,
+                history: chatHistory.slice(0, -1).slice(-10),
+                current_circuit: currentCircuitContext,
+            }),
+        });
+        const data = await r.json();
+        removeThinkingMessages();
+        const reply = data.reply || 'I ran that — check the main panel.';
+        appendChatMessage('assistant', reply);
+        chatHistory.push({ role: 'assistant', content: reply });
+
+        // Out-of-scope: show feedback form
+        if (data.unsupported_topic) {
+            appendFeedbackForm(data.unsupported_topic, message);
+        }
+
+        // Tool ran an analysis (or optimization) — update the main panel
+        if (data.analysis && data.analysis.success) {
+            enhanceWithJSAnalysis(data.analysis, { show_circuit_diagram: true, generate_plots: true });
+            displayResults(data.analysis);
+            currentCircuitContext = data.analysis;
+            appendChatMessage('system', '↑ Updated the main results panel');
+        }
+    } catch (e) {
+        removeThinkingMessages();
+        appendChatMessage('assistant', '⚠ Network error: ' + e.message);
+    } finally {
+        chatBusy = false;
+        sendBtn.disabled = false;
+        input.focus();
+    }
+}
 </script>
+
 </body>
 </html>
